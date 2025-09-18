@@ -1,6 +1,50 @@
 from typing import List, Tuple, Optional
 from collections import Counter
 
+def _lcsstr_preferring_blues(g: str, t: str, blue_pairs: set[tuple[int,int]]) -> Optional[tuple[int,int,int,int]]:
+    """
+    Longest common substring, but prefer any candidate that overlaps a blue-fixed (gi,tj).
+    Tie-break inside each preference class by smallest (t_start, g_start).
+    Returns (g_start, g_end, t_start, t_end) or None.
+    """
+    m, n = len(g), len(t)
+    if m == 0 or n == 0:
+        return None
+
+    # dp[i][j] = LCSstr ending at g[i-1], t[j-1]
+    dp = [[0]*(n+1) for _ in range(m+1)]
+    best_overlap = None   # (L, ts, gs, ge, te)
+    best_plain   = None   # (L, ts, gs, ge, te)
+
+    def upd(slot, L, gs, ge, ts, te):
+        if slot is None:
+            return (L, ts, gs, ge, te)
+        L0, ts0, gs0, ge0, te0 = slot
+        if L > L0 or (L == L0 and (ts, gs) < (ts0, gs0)):
+            return (L, ts, gs, ge, te)
+        return slot
+
+    for i in range(1, m+1):
+        gi = g[i-1]
+        for j in range(1, n+1):
+            if gi == t[j-1]:
+                dp[i][j] = dp[i-1][j-1] + 1
+                L = dp[i][j]
+                gs = i - L; ge = i - 1
+                ts = j - L; te = j - 1
+                # does this substring overlap any blue-fixed (gi,tj)?
+                overlaps_blue = any((gs <= bgi <= ge) and (ts <= btj <= te) for (bgi, btj) in blue_pairs)
+                if overlaps_blue:
+                    best_overlap = upd(best_overlap, L, gs, ge, ts, te)
+                else:
+                    best_plain   = upd(best_plain,   L, gs, ge, ts, te)
+
+    pick = best_overlap if best_overlap is not None else best_plain
+    if pick is None:
+        return None
+    _, ts, gs, ge, te = pick
+    return (gs, ge, ts, te)
+
 def _lcsstr_canonical(g: str, t: str) -> Optional[Tuple[int,int,int,int]]:
     """
     Longest common substring with canonical tie-break:
@@ -60,14 +104,15 @@ def hint(guess: str, target: str) -> List[str]:
     blue_start = (m > 0 and n > 0 and g[0] == t[0])
     blue_end   = (m > 0 and n > 0 and g[-1] == t[-1])
     if blue_start:
-        g2t[0] = 0
-        used_t[0] = True
+        g2t[0] = 0; used_t[0] = True
     if blue_end and (m-1 not in g2t):
-        g2t[m-1] = n-1
-        used_t[n-1] = True
+        g2t[m-1] = n-1; used_t[n-1] = True
 
-    # --- Step 2: main block (canonical LCSstr)
-    blk = _lcsstr_canonical(g, t)
+    # collect blue pairs for preference
+    blue_pairs = {(gi, tj) for gi, tj in g2t.items()}
+
+    # --- Step 2: main block (LCSstr preferring overlaps with blue)
+    blk = _lcsstr_preferring_blues(g, t, blue_pairs)
     if blk is not None:
         gs, ge, ts, te = blk
         # place it (consuming target positions), consistent with any blue already set

@@ -1,12 +1,9 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Build a Portuguese word list for a Wordle-like game.
 
-What's new vs. previous version:
 - Whitelist with Hunspell pt_BR + pt_PT (keeps only words recognized by the lexicon)
 - Optionally ban foreign letters k/w/y (default on) to avoid names/loanwords
-- Still merges frequency lists (pt + pt_BR), removes stopwords, filters by length,
+- Merges frequency lists (pt + pt_BR), removes stopwords, filters by length,
   ranks by combined frequency, and caps the list (default 10,000)
 
 Output: words.txt
