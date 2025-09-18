@@ -3,15 +3,17 @@ from collections import Counter
 
 def _lcsstr_preferring_blues(g: str, t: str, blue_pairs: set[tuple[int,int]]) -> Optional[tuple[int,int,int,int]]:
     """
-    Longest common substring, but prefer any candidate that overlaps a blue-fixed (gi,tj).
-    Tie-break inside each preference class by smallest (t_start, g_start).
+    Longest common substring with *global-longest* priority.
+    - First, choose the candidate with maximal length.
+    - If there's a length tie, prefer the one that overlaps a blue-fixed (gi, tj).
+    - Inside each class (overlap/plain), tie-break by smallest (t_start, g_start).
     Returns (g_start, g_end, t_start, t_end) or None.
     """
     m, n = len(g), len(t)
     if m == 0 or n == 0:
         return None
 
-    # dp[i][j] = LCSstr ending at g[i-1], t[j-1]
+    # dp[i][j] = LCSstr length ending at g[i-1], t[j-1]
     dp = [[0]*(n+1) for _ in range(m+1)]
     best_overlap = None   # (L, ts, gs, ge, te)
     best_plain   = None   # (L, ts, gs, ge, te)
@@ -39,37 +41,25 @@ def _lcsstr_preferring_blues(g: str, t: str, blue_pairs: set[tuple[int,int]]) ->
                 else:
                     best_plain   = upd(best_plain,   L, gs, ge, ts, te)
 
-    pick = best_overlap if best_overlap is not None else best_plain
-    if pick is None:
+    # --- selection policy: longest wins; overlap only breaks ties ---
+    if best_overlap is None and best_plain is None:
         return None
+
+    if best_overlap is None:
+        pick = best_plain
+    elif best_plain is None:
+        pick = best_overlap
+    else:
+        Lo, Lp = best_overlap[0], best_plain[0]
+        if Lo > Lp:
+            pick = best_overlap
+        elif Lp > Lo:
+            pick = best_plain
+        else:
+            pick = best_overlap
+
     _, ts, gs, ge, te = pick
     return (gs, ge, ts, te)
-
-def _lcsstr_canonical(g: str, t: str) -> Optional[Tuple[int,int,int,int]]:
-    """
-    Longest common substring with canonical tie-break:
-    choose the match with smallest (t_start, g_start).
-    Returns (g_start, g_end, t_start, t_end) or None.
-    """
-    m, n = len(g), len(t)
-    if m == 0 or n == 0:
-        return None
-    dp = [[0]*(n+1) for _ in range(m+1)]
-    best = None  # (g_start, g_end, t_start, t_end)
-    bestL = 0
-    for i in range(1, m+1):
-        gi = g[i-1]
-        for j in range(1, n+1):
-            if gi == t[j-1]:
-                dp[i][j] = dp[i-1][j-1] + 1
-                L = dp[i][j]
-                gs = i - L
-                ts = j - L
-                # prefer larger L; for ties pick smallest (ts, gs)
-                if (L > bestL) or (L == bestL and (best is None or (ts, gs) < (best[2], best[0]))):
-                    bestL = L
-                    best = (gs, i-1, ts, j-1)
-    return best if bestL > 0 else None
 
 def _greedy_match_side(g: str, t: str, gi_range: range, tj_lo: int, tj_hi: int,
                        used_t: List[bool], g2t: dict) -> None:
