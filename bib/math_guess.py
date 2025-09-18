@@ -141,7 +141,7 @@ def topN_from_metrics_csv(path: str, N: int = 5) -> Optional[List[Dict[str, floa
     return rows[:N]
 
 # ---------- exported API ----------
-def math_choose5(
+def math_choose_n(
     words_path: str,
     state: List[Tuple[str, List[str]]],
     allow_non_candidates: bool = True,
